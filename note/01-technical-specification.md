@@ -462,9 +462,10 @@ Build a simple AI chat agent that allows users to interact with multiple LLM pro
 | Google | gemini-flash-2.0 | 1M tokens | 4k tokens |
 
 **Provider Abstraction**:
-- Abstract base class for all LLM providers
-- Common interface for streaming responses
-- Each provider implements: OpenAI, Anthropic, Google
+- Use LiteLLM library for unified multi-provider interface
+- Thin wrapper layer for our SSE event format (`content_delta`, `tool_call`, `done`, `error`)
+- Provider factory selects provider by name from session config
+- LiteLLM handles: streaming, tool calling, error handling, retry logic
 
 **API Key Management**:
 - System-provided keys in environment variables
@@ -1018,9 +1019,7 @@ test: add tests for chat streaming
 - Pydantic-settings (configuration)
 
 **LLM Integration**:
-- openai (OpenAI SDK)
-- anthropic (Anthropic SDK)
-- google-generativeai (Gemini SDK)
+- litellm (unified multi-provider abstraction for OpenAI, Anthropic, Google)
 
 **File Processing**:
 - PDF text extraction library (e.g., PyMuPDF)

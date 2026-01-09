@@ -410,6 +410,46 @@ Centered landing page UI (similar to Grok but simpler):
 
 ---
 
-**Document Version**: 1.1
+### D011: Use LiteLLM for Multi-Provider Abstraction
+
+**Date**: 2026-01-09
+**Phase**: Planning / Phase 1
+**Status**: Accepted
+
+**Context**:
+Need to support 3 LLM providers (OpenAI, Anthropic, Google) with streaming, tool calling, and unified error handling. Options: build custom abstraction layer vs use existing library like LiteLLM.
+
+**Decision**:
+Use LiteLLM library for LLM provider abstraction instead of building custom abstraction layer.
+
+**Rationale**:
+- Saves 1-2 days of development time (custom abstraction requires implementing 3 providers + streaming + tool calling)
+- LiteLLM supports all required features: streaming, tool/function calling, error handling
+- Well-maintained library with active community (reduces maintenance burden)
+- Aligns with project principle: "Simplicity - Clean, readable code over clever abstractions"
+- Allows focusing on core application logic rather than provider integration details
+- Easy to extend: Adding new providers is configuration, not code
+- Built-in features we'll need later: cost tracking, rate limiting (enhancement features)
+
+**Alternatives Considered**:
+1. **Custom Abstraction Layer**: More control but requires implementing streaming, tool calling, error handling for each provider (estimated 1-2 days). Higher maintenance burden. Reinventing the wheel.
+2. **Direct SDK Usage**: No abstraction - use OpenAI SDK, Anthropic SDK, Google SDK directly. Too much code duplication, harder to maintain, violates DRY principle.
+
+**Consequences**:
+- ✅ **Pros**: Faster development, less code to maintain, proven library, built-in features (cost tracking, rate limiting), easy to add providers
+- ⚠️ **Cons**: External dependency, less control over internals, need to learn LiteLLM API, potential vendor lock-in (but can migrate later if needed)
+- 🔮 **Future Impact**: Easy to add more providers (100+ supported), can leverage LiteLLM's cost tracking for enhancement features, simplifies production deployment
+
+**Implementation Notes**:
+- Wrap LiteLLM in our own thin abstraction layer for our specific SSE event format (`content_delta`, `tool_call`, `done`, `error`)
+- Use LiteLLM's unified API but adapt streaming output to our SSE event structure
+- Keep provider selection logic (factory pattern) but delegate actual LLM calls to LiteLLM
+- This gives us: LiteLLM's provider handling + our custom SSE event format
+
+**Related Decisions**: D001 (Architecture), D004 (SSE Streaming)
+
+---
+
+**Document Version**: 1.2
 **Last Updated**: January 9, 2026
-**Total Decisions**: 10
+**Total Decisions**: 11

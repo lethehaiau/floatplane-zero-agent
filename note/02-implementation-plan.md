@@ -70,13 +70,13 @@ This document defines **WHEN** to build features through a phased implementation
 - `POST /api/chat/stream` - Send message and stream response (SSE)
 
 **LLM Integration**:
-- LLM provider abstraction (base class with common interface)
-- OpenAI provider implementation (gpt-4)
-- Anthropic provider implementation (claude-sonnet-4)
-- Google provider implementation (gemini-flash-2.0)
-- Provider factory (select by name from session config)
-- SSE streaming for all providers
-- Error handling with retry logic (3 attempts, exponential backoff)
+- Install and configure LiteLLM library
+- Create thin wrapper for our SSE event format (adapts LiteLLM streaming to our events)
+- Provider factory (select provider by name from session config, delegates to LiteLLM)
+- Configure LiteLLM for OpenAI (gpt-4), Anthropic (claude-sonnet-4), Google (gemini-flash-2.0)
+- SSE streaming wrapper (convert LiteLLM stream to our `content_delta` events)
+- Tool calling integration (LiteLLM handles provider differences, we format results)
+- Error handling wrapper (LiteLLM retry logic + our error event format)
 - Context window management (detect overflow, return error)
 
 **Core Logic**:

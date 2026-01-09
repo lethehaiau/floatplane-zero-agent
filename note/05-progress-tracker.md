@@ -54,13 +54,13 @@
 - [ ] POST /api/chat/stream (send message, stream response via SSE)
 
 #### LLM Integration
-- [ ] LLM provider abstraction (base class)
-- [ ] OpenAI provider implementation (gpt-4)
-- [ ] Anthropic provider implementation (claude-sonnet-4)
-- [ ] Google provider implementation (gemini-flash-2.0)
-- [ ] Provider factory (select by name)
-- [ ] SSE streaming for all providers
-- [ ] Error handling with retry logic (3 attempts, exponential backoff)
+- [ ] Install and configure LiteLLM library
+- [ ] Create thin wrapper for SSE event format (content_delta, tool_call, done, error)
+- [ ] Provider factory (select by name, delegates to LiteLLM)
+- [ ] Configure LiteLLM for OpenAI (gpt-4), Anthropic (claude-sonnet-4), Google (gemini-flash-2.0)
+- [ ] SSE streaming wrapper (convert LiteLLM stream to our event format)
+- [ ] Tool calling integration (LiteLLM handles provider differences)
+- [ ] Error handling wrapper (LiteLLM retry + our error events)
 - [ ] Context window management (detect overflow, return error)
 
 #### Core Logic
