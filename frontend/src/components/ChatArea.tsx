@@ -227,7 +227,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
               ) : (
                 <div>
                   <div className="text-xs text-gray-500 uppercase tracking-wide mb-1.5">Assistant</div>
-                  <div className="text-gray-900 leading-relaxed prose prose-gray max-w-none">
+                  <div className="text-gray-900 leading-relaxed">
                     <Markdown content={message.content} />
                   </div>
                 </div>
@@ -239,7 +239,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
             <div>
               <div className="text-xs text-gray-500 uppercase tracking-wide mb-1.5">Assistant</div>
               {streamingContent ? (
-                <div className="text-gray-900 leading-relaxed prose prose-gray max-w-none">
+                <div className="text-gray-900 leading-relaxed">
                   <Markdown content={streamingContent} />
                   <span className="animate-pulse">▊</span>
                 </div>
