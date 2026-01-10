@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat UI v2 - Wireframe Style</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fafafa;
+      color: #1a2b4a;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(26,43,74,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26,43,74,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      border-right: 2px solid #1a2b4a;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 2px solid #1a2b4a;
+    }
+
+    .logo {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #1a2b4a;
+      margin-bottom: 20px;
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: #fff;
+      border: 2px solid #1a2b4a;
+      border-radius: 30px;
+      color: #1a2b4a;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .new-chat-btn:hover {
+      background: #1a2b4a;
+      color: #fff;
+    }
+
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .session-item {
+      padding: 16px;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .session-item:hover {
+      border-color: #1a2b4a;
+    }
+
+    .session-item.active {
+      border-color: #1a2b4a;
+      background: rgba(26,43,74,0.03);
+    }
+
+    .session-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-meta {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .sidebar-footer {
+      padding: 16px 24px;
+      border-top: 2px solid #1a2b4a;
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* Main Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    /* Start Session */
+    .start-session {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .start-logo {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .start-subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 48px;
+    }
+
+    .start-input-wrapper {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .start-input-container {
+      border: 2px solid #1a2b4a;
+      border-radius: 30px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      padding: 8px 8px 8px 24px;
+    }
+
+    .start-input {
+      flex: 1;
+      border: none;
+      font-family: inherit;
+      font-size: 16px;
+      padding: 12px 0;
+      background: transparent;
+    }
+
+    .start-input::placeholder {
+      color: #999;
+    }
+
+    .start-input:focus {
+      outline: none;
+    }
+
+    .start-send-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #1a2b4a;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+
+    .start-send-btn:hover {
+      transform: scale(1.05);
+    }
+
+    /* Chat Area */
+    .chat-area {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+    }
+
+    .chat-area.active {
+      display: flex;
+    }
+
+    .chat-header {
+      padding: 24px 32px;
+      border-bottom: 2px solid #1a2b4a;
+    }
+
+    .chat-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .chat-subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    .message {
+      margin-bottom: 32px;
+      max-width: 900px;
+    }
+
+    .message.user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .message-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .user-bubble {
+      background: #1a2b4a;
+      color: #fff;
+      border-radius: 20px 20px 4px 20px;
+      padding: 20px 24px;
+      max-width: 500px;
+    }
+
+    .user-bubble .message-label {
+      color: rgba(255,255,255,0.6);
+    }
+
+    .assistant-content {
+      padding: 0 24px;
+      border-left: 3px solid #1a2b4a;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .assistant-content p {
+      margin-bottom: 16px;
+    }
+
+    .assistant-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .assistant-content code {
+      background: #f0f0f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .assistant-content pre {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      overflow-x: auto;
+      font-size: 14px;
+      border: 2px solid #e0e0e0;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 6px;
+      padding: 8px 0;
+    }
+
+    .typing-dot {
+      width: 10px;
+      height: 10px;
+      border: 2px solid #1a2b4a;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { opacity: 0.2; transform: scale(1); }
+      30% { opacity: 1; transform: scale(1.1); }
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 24px 32px;
+      border-top: 2px solid #1a2b4a;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+    }
+
+    .input-container {
+      flex: 1;
+      border: 2px solid #1a2b4a;
+      border-radius: 24px;
+      overflow: hidden;
+    }
+
+    .input-field {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 16px 24px;
+      color: #1a2b4a;
+      font-family: inherit;
+      font-size: 15px;
+      resize: none;
+    }
+
+    .input-field::placeholder {
+      color: #999;
+    }
+
+    .input-field:focus {
+      outline: none;
+    }
+
+    .send-btn {
+      width: 52px;
+      height: 52px;
+      background: #1a2b4a;
+      border: 2px solid #1a2b4a;
+      border-radius: 50%;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(26,43,74,0.2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">FLOATPLANE ZERO</div>
+        <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+      </div>
+
+      <div class="sessions-list" id="sessions"></div>
+
+      <div class="sidebar-footer">
+        <span id="session-count">0</span> session(s)
+      </div>
+    </div>
+
+    <div class="main-area">
+      <div class="start-session" id="start-session">
+        <div class="start-logo">Floatplane Zero</div>
+        <div class="start-subtitle">What would you like to know?</div>
+        <div class="start-input-wrapper">
+          <div class="start-input-container">
+            <input
+              type="text"
+              class="start-input"
+              id="start-input"
+              placeholder="Type your message..."
+              onkeydown="handleStartKeyDown(event)"
+            />
+            <button class="start-send-btn" onclick="startFromInput()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chat-area">
+        <div class="chat-header">
+          <div class="chat-title" id="chat-title">New Conversation</div>
+          <div class="chat-subtitle" id="chat-model">Claude 3.5 Sonnet</div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="input-area">
+          <div class="input-wrapper">
+            <div class="input-container">
+              <textarea
+                class="input-field"
+                id="input"
+                placeholder="Type your message..."
+                rows="2"
+                onkeydown="handleKeyDown(event)"
+              ></textarea>
+            </div>
+            <button class="send-btn" onclick="sendMessage()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mockSessions = [
+      { id: '1', title: 'Understanding React Hooks', model: 'Claude 3.5 Sonnet', active: false },
+      { id: '2', title: 'Python async patterns', model: 'GPT-4', active: false },
+    ];
+
+    let currentMessages = [];
+    let isTyping = false;
+
+    function renderSessions() {
+      const container = document.getElementById('sessions');
+      container.innerHTML = mockSessions.map(s => `
+        <div class="session-item ${s.active ? 'active' : ''}" onclick="selectSession('${s.id}')">
+          <div class="session-title">${s.title}</div>
+          <div class="session-meta">${s.model}</div>
+        </div>
+      `).join('');
+      document.getElementById('session-count').textContent = mockSessions.length;
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('messages');
+      container.innerHTML = currentMessages.map(m => {
+        if (m.role === 'user') {
+          return `
+            <div class="message user">
+              <div class="user-bubble">
+                <div class="message-label">You</div>
+                <div>${m.content}</div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="message assistant">
+              <div class="message-label">Assistant</div>
+              <div class="assistant-content">${formatContent(m.content)}</div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      if (isTyping) {
+        container.innerHTML += `
+          <div class="message assistant">
+            <div class="message-label">Assistant</div>
+            <div class="assistant-content">
+              <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatContent(content) {
+      return content
+        .split('\n\n')
+        .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+
+    function selectSession(id) {
+      mockSessions.forEach(s => s.active = s.id === id);
+      const session = mockSessions.find(s => s.id === id);
+      if (session) {
+        document.getElementById('chat-title').textContent = session.title;
+        currentMessages = [
+          { role: 'user', content: 'Can you explain how useEffect works?' },
+          { role: 'assistant', content: 'useEffect is a React Hook that lets you synchronize a component with an external system.\n\nIt runs after every render by default, but you can control when it runs using the dependency array.' }
+        ];
+        showChat();
+      }
+      renderSessions();
+      renderMessages();
+    }
+
+    function newChat() {
+      mockSessions.forEach(s => s.active = false);
+      currentMessages = [];
+      document.getElementById('start-session').style.display = 'flex';
+      document.getElementById('chat-area').classList.remove('active');
+      document.getElementById('start-input').value = '';
+      document.getElementById('start-input').focus();
+      renderSessions();
+    }
+
+    function showChat() {
+      document.getElementById('start-session').style.display = 'none';
+      document.getElementById('chat-area').classList.add('active');
+    }
+
+    function handleStartKeyDown(e) {
+      if (e.key === 'Enter') {
+        startFromInput();
+      }
+    }
+
+    function startFromInput() {
+      const input = document.getElementById('start-input');
+      const message = input.value.trim();
+      if (message) {
+        startNewSession(message);
+      }
+    }
+
+    function startNewSession(message) {
+      const title = message.slice(0, 40) + (message.length > 40 ? '...' : '');
+      const newSession = {
+        id: Date.now().toString(),
+        title,
+        model: 'Claude 3.5 Sonnet',
+        active: true
+      };
+      mockSessions.forEach(s => s.active = false);
+      mockSessions.unshift(newSession);
+
+      document.getElementById('chat-title').textContent = title;
+      currentMessages = [{ role: 'user', content: message }];
+
+      showChat();
+      renderSessions();
+      renderMessages();
+      simulateResponse();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('input');
+      const message = input.value.trim();
+      if (!message || isTyping) return;
+
+      currentMessages.push({ role: 'user', content: message });
+      input.value = '';
+      renderMessages();
+      simulateResponse();
+    }
+
+    function simulateResponse() {
+      isTyping = true;
+      renderMessages();
+
+      setTimeout(() => {
+        isTyping = false;
+        currentMessages.push({
+          role: 'assistant',
+          content: 'This is a simulated response to demonstrate the chat interface.\n\nIn a real application, this would be the AI\'s response to your query with full markdown support.'
+        });
+        renderMessages();
+      }, 1500);
+    }
+
+    renderSessions();
+  </script>
+</body>
+</html>

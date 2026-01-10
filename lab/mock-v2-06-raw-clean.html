@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat UI v2 - Raw Clean</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff;
+      color: #111;
+      height: 100vh;
+      overflow: hidden;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #eee;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+    }
+
+    .logo {
+      font-size: 14px;
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 24px;
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 10px 0;
+      background: none;
+      border: 1px solid #ddd;
+      color: #111;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .new-chat-btn:hover {
+      border-color: #111;
+    }
+
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 12px;
+    }
+
+    .session-item {
+      padding: 12px 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-left: 2px solid transparent;
+    }
+
+    .session-item:hover {
+      background: #fafafa;
+    }
+
+    .session-item.active {
+      border-color: #111;
+      background: #fafafa;
+    }
+
+    .session-title {
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-meta {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    /* Main Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Start Session */
+    .start-session {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .start-title {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .start-subtitle {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 48px;
+    }
+
+    .start-input-wrapper {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .start-input {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      padding: 16px 0;
+      font-family: inherit;
+      font-size: 16px;
+      text-align: center;
+      background: transparent;
+    }
+
+    .start-input::placeholder {
+      color: #bbb;
+    }
+
+    .start-input:focus {
+      outline: none;
+      border-color: #111;
+    }
+
+    .start-hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
+
+    /* Chat Area */
+    .chat-area {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+    }
+
+    .chat-area.active {
+      display: flex;
+    }
+
+    .chat-header {
+      padding: 20px 40px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .chat-subtitle {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+    }
+
+    .message {
+      margin-bottom: 32px;
+      max-width: 720px;
+    }
+
+    .message.user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .message-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .user-bubble {
+      background: #f5f5f5;
+      padding: 14px 18px;
+      max-width: 480px;
+    }
+
+    .user-bubble .message-label {
+      text-align: right;
+    }
+
+    .assistant-content {
+      line-height: 1.7;
+    }
+
+    .assistant-content p {
+      margin-bottom: 16px;
+    }
+
+    .assistant-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .assistant-content code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      font-size: 14px;
+    }
+
+    .assistant-content pre {
+      background: #f5f5f5;
+      padding: 16px;
+      margin: 16px 0;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+
+    .typing-indicator {
+      display: inline-flex;
+      gap: 4px;
+      padding: 8px 0;
+    }
+
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      background: #888;
+      border-radius: 50%;
+      animation: typing 1s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { opacity: 0.3; }
+      30% { opacity: 1; }
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 24px 40px 40px;
+      border-top: 1px solid #eee;
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+    }
+
+    .input-field {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      padding: 12px 0;
+      color: #111;
+      font-family: inherit;
+      font-size: 15px;
+      resize: none;
+    }
+
+    .input-field::placeholder {
+      color: #bbb;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: #111;
+    }
+
+    .send-btn {
+      padding: 12px 24px;
+      background: #111;
+      border: none;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .send-btn:hover {
+      opacity: 0.8;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">Floatplane Zero</div>
+        <button class="new-chat-btn" onclick="newChat()">New conversation</button>
+      </div>
+
+      <div class="sessions-list" id="sessions"></div>
+
+      <div class="sidebar-footer">
+        <span id="session-count">0</span> conversations
+      </div>
+    </div>
+
+    <div class="main-area">
+      <div class="start-session" id="start-session">
+        <div class="start-title">Start a conversation</div>
+        <div class="start-subtitle">Type a message below to begin</div>
+        <div class="start-input-wrapper">
+          <input
+            type="text"
+            class="start-input"
+            id="start-input"
+            placeholder="Type a message"
+            onkeydown="handleStartKeyDown(event)"
+          />
+          <div class="start-hint">Press Enter to send</div>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chat-area">
+        <div class="chat-header">
+          <div class="chat-title" id="chat-title">New Conversation</div>
+          <div class="chat-subtitle" id="chat-model">Claude 3.5 Sonnet</div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="input-area">
+          <div class="input-wrapper">
+            <textarea
+              class="input-field"
+              id="input"
+              placeholder="Type a message"
+              rows="1"
+              onkeydown="handleKeyDown(event)"
+            ></textarea>
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mockSessions = [
+      { id: '1', title: 'Understanding React Hooks', model: 'Claude 3.5 Sonnet', active: false },
+      { id: '2', title: 'Python async patterns', model: 'GPT-4', active: false },
+    ];
+
+    let currentMessages = [];
+    let isTyping = false;
+
+    function renderSessions() {
+      const container = document.getElementById('sessions');
+      container.innerHTML = mockSessions.map(s => `
+        <div class="session-item ${s.active ? 'active' : ''}" onclick="selectSession('${s.id}')">
+          <div class="session-title">${s.title}</div>
+          <div class="session-meta">${s.model}</div>
+        </div>
+      `).join('');
+      document.getElementById('session-count').textContent = mockSessions.length;
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('messages');
+      container.innerHTML = currentMessages.map(m => {
+        if (m.role === 'user') {
+          return `
+            <div class="message user">
+              <div class="user-bubble">
+                <div class="message-label">You</div>
+                <div>${m.content}</div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="message assistant">
+              <div class="message-label">Assistant</div>
+              <div class="assistant-content">${formatContent(m.content)}</div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      if (isTyping) {
+        container.innerHTML += `
+          <div class="message assistant">
+            <div class="message-label">Assistant</div>
+            <div class="assistant-content">
+              <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatContent(content) {
+      return content.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+    }
+
+    function selectSession(id) {
+      mockSessions.forEach(s => s.active = s.id === id);
+      const session = mockSessions.find(s => s.id === id);
+      if (session) {
+        document.getElementById('chat-title').textContent = session.title;
+        currentMessages = [
+          { role: 'user', content: 'Can you explain how useEffect works?' },
+          { role: 'assistant', content: 'useEffect is a React Hook that lets you synchronize a component with an external system.\n\nIt runs after every render by default, but you can control when it runs using the dependency array.' }
+        ];
+        showChat();
+      }
+      renderSessions();
+      renderMessages();
+    }
+
+    function newChat() {
+      mockSessions.forEach(s => s.active = false);
+      currentMessages = [];
+      document.getElementById('start-session').style.display = 'flex';
+      document.getElementById('chat-area').classList.remove('active');
+      document.getElementById('start-input').value = '';
+      document.getElementById('start-input').focus();
+      renderSessions();
+    }
+
+    function showChat() {
+      document.getElementById('start-session').style.display = 'none';
+      document.getElementById('chat-area').classList.add('active');
+    }
+
+    function handleStartKeyDown(e) {
+      if (e.key === 'Enter') {
+        const input = document.getElementById('start-input');
+        const message = input.value.trim();
+        if (message) startNewSession(message);
+      }
+    }
+
+    function startNewSession(message) {
+      const title = message.slice(0, 40) + (message.length > 40 ? '...' : '');
+      const newSession = { id: Date.now().toString(), title, model: 'Claude 3.5 Sonnet', active: true };
+      mockSessions.forEach(s => s.active = false);
+      mockSessions.unshift(newSession);
+
+      document.getElementById('chat-title').textContent = title;
+      currentMessages = [{ role: 'user', content: message }];
+
+      showChat();
+      renderSessions();
+      renderMessages();
+      simulateResponse();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('input');
+      const message = input.value.trim();
+      if (!message || isTyping) return;
+
+      currentMessages.push({ role: 'user', content: message });
+      input.value = '';
+      renderMessages();
+      simulateResponse();
+    }
+
+    function simulateResponse() {
+      isTyping = true;
+      renderMessages();
+
+      setTimeout(() => {
+        isTyping = false;
+        currentMessages.push({
+          role: 'assistant',
+          content: 'This is a simulated response to demonstrate the chat interface.\n\nIn a real application, this would be the AI\'s response to your query with full markdown support.'
+        });
+        renderMessages();
+      }, 1500);
+    }
+
+    renderSessions();
+  </script>
+</body>
+</html>
