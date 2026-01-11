@@ -6,8 +6,8 @@
 
 ## What We're Working On
 
-**Phase**: Phase 2 - File Upload Feature ✅ COMPLETE
-**Ready to Commit**: All features working + bugs fixed + tests passing
+**Phase**: Phase 2 - File Upload Feature ✅ COMPLETE + Code Cleanup ✅
+**Status**: Ready to commit and move to Phase 3 (Internet Search Tool)
 
 ### Phase 1 Feature Breakdown (5 Features)
 
@@ -126,14 +126,29 @@
 
 *This section is for quick notes during active work. Clear it when switching tasks.*
 
-**Current Status**: ✅ Phase 2 COMPLETE - Ready to commit
+**Current Status**: ✅ Phase 2 COMPLETE + Code Cleanup - Ready to commit
 
 **What's Ready to Commit**:
 1. File upload UI + LLM integration (Feature 7)
 2. File metadata bug fix (per-message display)
-3. Per-session draft with localStorage
+3. Per-session draft with localStorage (save on session exit)
 4. Comprehensive test suite (39 tests passing)
 5. Database compatibility layer for tests
+6. ChatArea.tsx refactoring and cleanup
+
+**Recent Bug Fixes**:
+- ✅ Draft storage race condition - Now saves on session exit (cleanup), not on every keystroke
+- ✅ State cleared synchronously to prevent stale refs in fast session switches
+- ✅ Initial message restoration on error for better UX
+- ✅ useEffect dependency ordering (handleSend defined before use)
+
+**Code Refactoring Completed**:
+- ✅ Consolidated `sendPendingMessage` into `handleSend` (removed 35 lines of duplication)
+- ✅ Extracted file validation constants (ALLOWED_FILE_TYPES, MAX_FILE_SIZE, etc.)
+- ✅ Extracted `getFilesMetadata()` helper function (DRY principle)
+- ✅ Memoized `handleFileDelete` callback (performance)
+- ✅ Fixed missing useEffect dependencies
+- ✅ Fixed TypeScript error with onClick handler
 
 **Files Changed**:
 - Backend:
@@ -145,13 +160,20 @@
   - `tests/` - Full test suite (conftest, test_chat, test_integration, test_sessions, test_files)
 
 - Frontend:
-  - `src/components/ChatArea.tsx` - Badge-style icons, files_metadata in request, draft persistence
+  - `src/components/ChatArea.tsx` - Badge-style icons, files_metadata in request, draft persistence (save on exit), refactored and cleaned
   - `src/utils/draftStorage.ts` - localStorage utility for per-session drafts
   - `package.json` - Added markdown dependencies
 
+**Impact Summary**:
+- Lines of code: -35 lines (-7.5%)
+- Code duplication: Eliminated (2 → 1 function)
+- Magic numbers: Centralized (6 locations → 0)
+- React warnings: Fixed (missing deps)
+- Better UX: Initial message restored on error
+
 **Next Steps**:
-1. Commit this stage (Phase 2 complete)
-2. Move to Phase 3 when ready (Internet Search Tool)
+1. Commit this stage (Phase 2 complete + cleanup)
+2. Move to Phase 3 (Internet Search Tool)
 
 **Future Tasks (Noted, Not Blocking)**:
 - Add cronjob to cleanup orphaned files (uploaded but never sent)
