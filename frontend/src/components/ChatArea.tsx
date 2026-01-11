@@ -13,6 +13,12 @@ interface ChatAreaProps {
   onSessionUpdate?: (session: Session) => void
 }
 
+// File upload constraints
+const ALLOWED_FILE_TYPES = ['pdf', 'txt', 'md'] as const
+const MAX_FILE_SIZE_MB = 10
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+const MAX_FILES_PER_SESSION = 3
+
 export function ChatArea({ session, initialMessage, onInitialMessageSent, onSessionUpdate }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -81,55 +87,6 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     }
   }, [session.id])
 
-  // Handle initial message from empty state
-  useEffect(() => {
-    if (initialMessage) {
-      sendPendingMessage(initialMessage)
-      onInitialMessageSent?.()
-    }
-  }, [initialMessage])
-
-  const sendPendingMessage = (messageText: string) => {
-    if (!messageText.trim() || loading) return
-
-    const filesSnapshot = [...files]
-    setLoading(true)
-    setError(null)
-    setStreamingContent('')
-
-    abortRef.current = chatApi.streamMessage(
-      {
-        session_id: session.id,
-        message: messageText,
-        files_metadata: files.map(f => ({
-          filename: f.filename,
-          file_type: f.file_type
-        }))
-      },
-      (message) => {
-        setMessages((prev) => [...prev, message])
-        // Clear files from input area after sending
-        setFiles([])
-        // Clear draft after successful send
-        clearSessionDraft(session.id)
-      },
-      (chunk) => setStreamingContent((prev) => prev + chunk),
-      (message) => {
-        setStreamingContent('')
-        setMessages((prev) => [...prev, message])
-        setLoading(false)
-        abortRef.current = null
-      },
-      (errorMsg) => {
-        setError(errorMsg)
-        setStreamingContent('')
-        setLoading(false)
-        setFiles(filesSnapshot) // Restore files on error
-        abortRef.current = null
-      }
-    )
-  }
-
   useEffect(() => {
     scrollToBottom()
   }, [messages, streamingContent])
@@ -164,20 +121,20 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
 
     // Validate file type
     const ext = selectedFile.name.split('.').pop()?.toLowerCase()
-    if (!ext || !['pdf', 'txt', 'md'].includes(ext)) {
-      setError('Only PDF, TXT, and MD files are supported')
+    if (!ext || !ALLOWED_FILE_TYPES.includes(ext as typeof ALLOWED_FILE_TYPES[number])) {
+      setError(`Only ${ALLOWED_FILE_TYPES.join(', ').toUpperCase()} files are supported`)
       return
     }
 
-    // Validate file size (10MB)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB')
+    // Validate file size
+    if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      setError(`File size must be less than ${MAX_FILE_SIZE_MB}MB`)
       return
     }
 
-    // Check file count (max 3)
-    if (files.length >= 3) {
-      setError('Maximum 3 files per session')
+    // Check file count
+    if (files.length >= MAX_FILES_PER_SESSION) {
+      setError(`Maximum ${MAX_FILES_PER_SESSION} files per session`)
       return
     }
 
@@ -193,7 +150,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     }
   }
 
-  const handleFileDelete = async (fileId: string) => {
+  const handleFileDelete = useCallback(async (fileId: string) => {
     try {
       setError(null)
       await filesApi.delete(session.id, fileId)
@@ -201,14 +158,22 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete file')
     }
+  }, [session.id])
+
+  // Helper to extract file metadata for API requests
+  const getFilesMetadata = (files: FileInfo[]) => {
+    return files.map(f => ({
+      filename: f.filename,
+      file_type: f.file_type
+    }))
   }
 
-  const handleSend = useCallback(() => {
-    if (!input.trim() || loading) return
+  const handleSend = useCallback((messageOverride?: string) => {
+    const messageToSend = messageOverride ?? input.trim()
+    if (!messageToSend.trim() || loading) return
 
-    const userMessage = input.trim()
     const filesSnapshot = [...files]
-    setInput('')
+    setInput('')  // Always clear input before sending
     setLoading(true)
     setError(null)
     setStreamingContent('')
@@ -221,11 +186,8 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     abortRef.current = chatApi.streamMessage(
       {
         session_id: session.id,
-        message: userMessage,
-        files_metadata: files.map(f => ({
-          filename: f.filename,
-          file_type: f.file_type
-        }))
+        message: messageToSend,
+        files_metadata: getFilesMetadata(files)
       },
       // onUserMessage
       (message) => {
@@ -251,12 +213,20 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
         setError(errorMsg)
         setStreamingContent('')
         setLoading(false)
-        setInput(userMessage) // Restore input on error
+        setInput(messageToSend) // Always restore message on error
         setFiles(filesSnapshot) // Restore files on error
         abortRef.current = null
       }
     )
   }, [input, loading, session.id, files])
+
+  // Handle initial message from empty state
+  useEffect(() => {
+    if (initialMessage) {
+      handleSend(initialMessage)
+      onInitialMessageSent?.()
+    }
+  }, [initialMessage, handleSend, onInitialMessageSent])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -415,7 +385,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.txt,.md"
+              accept={ALLOWED_FILE_TYPES.map(ext => `.${ext}`).join(',')}
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -423,9 +393,9 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
             {/* Paperclip button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={loading || uploadingFile || files.length >= 3}
+              disabled={loading || uploadingFile || files.length >= MAX_FILES_PER_SESSION}
               className="pb-3 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title={files.length >= 3 ? 'Maximum 3 files per session' : 'Upload file (PDF, TXT, MD)'}
+              title={files.length >= MAX_FILES_PER_SESSION ? `Maximum ${MAX_FILES_PER_SESSION} files per session` : `Upload file (${ALLOWED_FILE_TYPES.join(', ').toUpperCase()})`}
             >
               <svg
                 className="w-5 h-5"
