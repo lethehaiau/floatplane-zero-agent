@@ -422,7 +422,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
               className="flex-1 py-3 border-b border-gray-300 focus:border-gray-900 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none resize-none transition-colors"
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || loading}
               className="px-6 py-3 bg-gray-900 text-white text-sm hover:opacity-80 disabled:bg-gray-300 disabled:cursor-not-allowed transition-opacity"
             >
