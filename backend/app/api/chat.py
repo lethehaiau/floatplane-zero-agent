@@ -14,6 +14,7 @@ import litellm
 from app.database import get_db, SessionLocal
 from app.models.session import Session
 from app.models.message import Message
+from app.models.file import File
 from app.schemas.message import ChatRequest, ChatResponse, MessageResponse
 from app.config import settings
 
@@ -48,11 +49,25 @@ async def send_message(
             detail=f"Session {chat_request.session_id} not found"
         )
 
-    # Create user message
+    # Build file metadata for user message from request
+    file_metadata = None
+    if chat_request.files_metadata:
+        file_metadata = {
+            "files": [
+                {
+                    "filename": f.filename,
+                    "file_type": f.file_type
+                }
+                for f in chat_request.files_metadata
+            ]
+        }
+
+    # Create user message with file metadata
     user_message = Message(
         session_id=chat_request.session_id,
         role="user",
-        content=chat_request.message
+        content=chat_request.message,
+        message_metadata=file_metadata
     )
     db.add(user_message)
     db.commit()
@@ -70,8 +85,8 @@ async def send_message(
     ]
 
     try:
-        # Call OpenAI API (non-streaming)
-        response = openai_client.chat.completions.create(
+        # Call LLM API (non-streaming)
+        response = litellm.completion(
             model=session.llm_model,
             messages=messages,
             temperature=0.7,
@@ -159,11 +174,25 @@ async def stream_chat(
     session_id = session.id
     llm_model = session.llm_model
 
-    # Create user message
+    # Build file metadata for user message from request
+    file_metadata = None
+    if chat_request.files_metadata:
+        file_metadata = {
+            "files": [
+                {
+                    "filename": f.filename,
+                    "file_type": f.file_type
+                }
+                for f in chat_request.files_metadata
+            ]
+        }
+
+    # Create user message with file metadata
     user_message = Message(
         session_id=session_id,
         role="user",
-        content=chat_request.message
+        content=chat_request.message,
+        message_metadata=file_metadata
     )
     db.add(user_message)
     db.commit()
@@ -175,7 +204,8 @@ async def stream_chat(
         "session_id": str(user_message.session_id),
         "role": user_message.role,
         "content": user_message.content,
-        "created_at": user_message.created_at.isoformat()
+        "created_at": user_message.created_at.isoformat(),
+        "message_metadata": user_message.message_metadata
     }
 
     # Get all previous messages for context (before db session closes)
@@ -188,6 +218,23 @@ async def stream_chat(
         {"role": msg.role, "content": msg.content}
         for msg in previous_messages
     ]
+
+    session_files = db.query(File).filter(
+        File.session_id == session_id
+    ).order_by(File.created_at).all()
+
+    # If there are files, prepend them as a system message
+    if session_files:
+        files_content = []
+        for file in session_files:
+            file_text = f"[File: {file.filename}]\n{file.extracted_text}\n[End of file]"
+            files_content.append(file_text)
+
+        system_message = {
+            "role": "system",
+            "content": "The following files have been uploaded by the user. Use their content to answer questions:\n\n" + "\n\n".join(files_content)
+        }
+        llm_messages.insert(0, system_message)
 
     async def generate() -> AsyncGenerator[str, None]:
         """Generate SSE events for streaming response."""

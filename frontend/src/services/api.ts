@@ -3,6 +3,15 @@ import type { ChatRequest, ChatResponse, Message } from '../types/message'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
+export interface FileInfo {
+  id: string
+  session_id: string
+  filename: string
+  file_size: number
+  file_type: string
+  created_at: string
+}
+
 export interface ModelInfo {
   provider: string
   model: string
@@ -178,5 +187,30 @@ export const chatApi = {
 
     // Return abort function
     return () => controller.abort()
+  },
+}
+
+export const filesApi = {
+  async upload(sessionId: string, file: File): Promise<FileInfo> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/files`, {
+      method: 'POST',
+      body: formData,
+    })
+    return handleResponse<FileInfo>(response)
+  },
+
+  async list(sessionId: string): Promise<FileInfo[]> {
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/files`)
+    return handleResponse<FileInfo[]>(response)
+  },
+
+  async delete(sessionId: string, fileId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/files/${fileId}`, {
+      method: 'DELETE',
+    })
+    return handleResponse<void>(response)
   },
 }

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Session } from '../types/session'
 import type { Message } from '../types/message'
-import { chatApi, sessionsApi } from '../services/api'
+import { chatApi, sessionsApi, filesApi, type FileInfo } from '../services/api'
 import { Markdown } from './Markdown'
+import { FileList } from './FileList'
+import { getSessionDraft, saveSessionDraft, clearSessionDraft } from '../utils/draftStorage'
 
 interface ChatAreaProps {
   session: Session
@@ -19,16 +21,45 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
   const [streamingContent, setStreamingContent] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState(session.title)
+  const [files, setFiles] = useState<FileInfo[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<(() => void) | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   useEffect(() => {
-    loadMessages()
+    const loadData = async () => {
+      const msgs = await loadMessages()
+      const hasMessages = msgs.length > 0
+
+      // Load draft for this session
+      const draft = getSessionDraft(session.id)
+
+      if (draft) {
+        // Restore draft message
+        setInput(draft.message)
+
+        // Restore draft files by loading from backend
+        try {
+          const allFiles = await filesApi.list(session.id)
+          const draftFiles = allFiles.filter(f => draft.fileIds.includes(f.id))
+          setFiles(draftFiles)
+        } catch (err) {
+          console.error('Failed to load draft files:', err)
+          setFiles([])
+        }
+      } else {
+        // No draft, clear input and load unsent files if session is empty
+        setInput('')
+        await loadFiles(hasMessages)
+      }
+    }
+    loadData()
   }, [session.id])
 
   // Handle initial message from empty state
@@ -39,9 +70,18 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     }
   }, [initialMessage])
 
+  // Save draft whenever input or files change
+  useEffect(() => {
+    saveSessionDraft(session.id, {
+      message: input,
+      fileIds: files.map(f => f.id)
+    })
+  }, [input, files, session.id])
+
   const sendPendingMessage = (messageText: string) => {
     if (!messageText.trim() || loading) return
 
+    const filesSnapshot = [...files]
     setLoading(true)
     setError(null)
     setStreamingContent('')
@@ -50,8 +90,18 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
       {
         session_id: session.id,
         message: messageText,
+        files_metadata: files.map(f => ({
+          filename: f.filename,
+          file_type: f.file_type
+        }))
       },
-      (message) => setMessages((prev) => [...prev, message]),
+      (message) => {
+        setMessages((prev) => [...prev, message])
+        // Clear files from input area after sending
+        setFiles([])
+        // Clear draft after successful send
+        clearSessionDraft(session.id)
+      },
       (chunk) => setStreamingContent((prev) => prev + chunk),
       (message) => {
         setStreamingContent('')
@@ -63,6 +113,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
         setError(errorMsg)
         setStreamingContent('')
         setLoading(false)
+        setFiles(filesSnapshot) // Restore files on error
         abortRef.current = null
       }
     )
@@ -81,13 +132,76 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     }
   }, [session.id])
 
-  const loadMessages = async () => {
+  const loadMessages = async (): Promise<Message[]> => {
     try {
       setError(null)
       const data = await chatApi.getSessionMessages(session.id)
       setMessages(data)
+      return data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages')
+      return []
+    }
+  }
+
+  const loadFiles = async (hasMessages: boolean) => {
+    try {
+      const data = await filesApi.list(session.id)
+      // Only load files into input area if there are no messages yet
+      // (files in sessions with messages are considered "sent")
+      if (!hasMessages) {
+        setFiles(data)
+      }
+    } catch (err) {
+      console.error('Failed to load files:', err)
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
+
+    // Reset input value so same file can be selected again
+    e.target.value = ''
+
+    // Validate file type
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase()
+    if (!ext || !['pdf', 'txt', 'md'].includes(ext)) {
+      setError('Only PDF, TXT, and MD files are supported')
+      return
+    }
+
+    // Validate file size (10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB')
+      return
+    }
+
+    // Check file count (max 3)
+    if (files.length >= 3) {
+      setError('Maximum 3 files per session')
+      return
+    }
+
+    try {
+      setUploadingFile(true)
+      setError(null)
+      const uploadedFile = await filesApi.upload(session.id, selectedFile)
+      setFiles((prev) => [...prev, uploadedFile])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload file')
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      setError(null)
+      await filesApi.delete(session.id, fileId)
+      setFiles((prev) => prev.filter((f) => f.id !== fileId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete file')
     }
   }
 
@@ -95,6 +209,7 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     if (!input.trim() || loading) return
 
     const userMessage = input.trim()
+    const filesSnapshot = [...files]
     setInput('')
     setLoading(true)
     setError(null)
@@ -109,10 +224,18 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
       {
         session_id: session.id,
         message: userMessage,
+        files_metadata: files.map(f => ({
+          filename: f.filename,
+          file_type: f.file_type
+        }))
       },
       // onUserMessage
       (message) => {
         setMessages((prev) => [...prev, message])
+        // Clear files from input area after sending
+        setFiles([])
+        // Clear draft after successful send
+        clearSessionDraft(session.id)
       },
       // onContentDelta
       (chunk) => {
@@ -131,10 +254,11 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
         setStreamingContent('')
         setLoading(false)
         setInput(userMessage) // Restore input on error
+        setFiles(filesSnapshot) // Restore files on error
         abortRef.current = null
       }
     )
-  }, [input, loading, session.id])
+  }, [input, loading, session.id, files])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -221,6 +345,23 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
                 <div className="flex justify-end">
                   <div className="bg-gray-100 px-5 py-4 max-w-md">
                     <div className="text-xs text-gray-500 uppercase tracking-wide mb-1.5 text-right">You</div>
+                    {message.message_metadata?.files && message.message_metadata.files.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-2">
+                          {message.message_metadata.files.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg text-sm border border-gray-200"
+                            >
+                              <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded text-xs font-medium text-gray-600">
+                                {file.file_type.toUpperCase()}
+                              </div>
+                              <span className="text-gray-500">{file.filename}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="text-gray-900 whitespace-pre-wrap break-words">{message.content}</div>
                   </div>
                 </div>
@@ -266,23 +407,60 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
 
       {/* Input */}
       <div className="px-10 py-6 border-t border-gray-200">
-        <div className="flex items-end gap-4 max-w-3xl">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message"
-            disabled={loading}
-            rows={1}
-            className="flex-1 py-3 border-b border-gray-300 focus:border-gray-900 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none resize-none transition-colors"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            className="px-6 py-3 bg-gray-900 text-white text-sm hover:opacity-80 disabled:bg-gray-300 disabled:cursor-not-allowed transition-opacity"
-          >
-            Send
-          </button>
+        <div className="max-w-3xl">
+          {/* File List */}
+          <FileList files={files} onDelete={handleFileDelete} />
+
+          {/* Input Area */}
+          <div className="flex items-end gap-4">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.txt,.md"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            {/* Paperclip button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || uploadingFile || files.length >= 3}
+              className="pb-3 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title={files.length >= 3 ? 'Maximum 3 files per session' : 'Upload file (PDF, TXT, MD)'}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                />
+              </svg>
+            </button>
+
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message"
+              disabled={loading}
+              rows={1}
+              className="flex-1 py-3 border-b border-gray-300 focus:border-gray-900 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none resize-none transition-colors"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+              className="px-6 py-3 bg-gray-900 text-white text-sm hover:opacity-80 disabled:bg-gray-300 disabled:cursor-not-allowed transition-opacity"
+            >
+              Send
+            </button>
+          </div>
         </div>
       </div>
     </div>

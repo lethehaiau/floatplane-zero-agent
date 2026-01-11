@@ -3,10 +3,26 @@ Message model for chat messages.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON, TypeDecorator
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
-from app.database import Base
+from app.database import Base, UUIDType
+
+
+class JSONType(TypeDecorator):
+    """
+    JSON type that works with both PostgreSQL (JSONB) and SQLite (JSON).
+
+    Uses JSONB for PostgreSQL for better performance, falls back to JSON for other databases.
+    """
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(JSONB())
+        else:
+            return dialect.type_descriptor(JSON())
 
 
 class Message(Base):
@@ -17,11 +33,12 @@ class Message(Base):
     """
     __tablename__ = "messages"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    id = Column(UUIDType(), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUIDType(), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(String(20), nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    message_metadata = Column(JSONType, nullable=True)  # Stores file metadata: {"files": [{"filename": "...", "file_type": "..."}]}
 
     # Relationship to session
     session = relationship(

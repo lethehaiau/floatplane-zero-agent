@@ -1,13 +1,13 @@
 # Current Focus
 
-**Last Updated**: January 9, 2026
+**Last Updated**: January 11, 2026
 
 ---
 
 ## What We're Working On
 
-**Phase**: Phase 1 - Complete Chat Experience 🚀
-**Current Feature**: Feature 2 - Session Management (CRUD)
+**Phase**: Phase 2 - File Upload Feature ✅ COMPLETE
+**Ready to Commit**: All features working + bugs fixed + tests passing
 
 ### Phase 1 Feature Breakdown (5 Features)
 
@@ -43,39 +43,82 @@
 - Frontend: Inline session title editing (click to edit)
 - **Test**: Select model → type message → creates session with that model → title editable ✅
 
+### Phase 2 Feature Breakdown (2 Features)
+
+**Feature 6: File Storage + Text Extraction (Backend)** ✅ COMPLETE
+- Backend: Files table, Alembic migration, local storage (`./uploads/`)
+- Backend: Text extraction (PyMuPDF for PDF, plain read for TXT/MD)
+- Backend: POST `/api/sessions/{id}/files` (upload), GET `/api/sessions/{id}/files` (list), DELETE endpoints
+- **Test**: Upload PDF/TXT/MD → extract text → verify in DB → delete file ✅
+
+**Feature 7: File Upload UI + LLM Integration (Full Flow)** ✅ COMPLETE
+- Frontend: Paperclip button, file picker, display above input
+- Frontend: Send files + message together
+- Backend: Include file content in LLM context
+- Frontend: Display uploaded files in session (read-only after send)
+- Frontend: Per-session draft with localStorage (message + files persist)
+- **Test**: Upload PDF → send message → LLM uses file content → files shown ✅
+- **Bugs Fixed**: File metadata per message, draft state persistence
+
 ---
 
 ## Active Context
 
-### Recently Completed
-- ✅ Technical specification (01-technical-specification.md v1.2)
-- ✅ Implementation plan (02-implementation-plan.md v2.0 - Option 3)
-- ✅ Supporting workflow files (decision-log, progress-tracker, current-focus)
-- ✅ All final behavioral clarifications
-- ✅ Pre-development validation
-- ✅ **Feature 1: Project Setup + Health Check**
-  - Monorepo structure complete
-  - Backend FastAPI with health endpoint working
-  - Frontend React 19 + Vite + TypeScript + Tailwind CSS
-  - Docker Compose configured (3 services running)
-  - Health check endpoint tested and working
+### Recently Completed (Ready to Commit)
 
-### Current Feature: Feature 2 - Session Management (CRUD)
-**What We're Building Right Now**:
-- Backend: Database schema (sessions table only)
-- Backend: SQLAlchemy models for Session
-- Backend: Alembic migrations setup and initial migration
-- Backend: Sessions CRUD API endpoints (create, list, get, delete, clone)
-- Frontend: Session sidebar component
-- Frontend: Create new session, list all sessions, delete, clone buttons
-- Frontend: API integration for session management
+**✅ Phase 1 Complete (Features 1-5)**
+- Project setup, session management, chat, streaming, multi-LLM
+- All core chat functionality working with 3 providers
 
-**Success Criteria**:
-- ✅ Create new session from UI
-- ✅ See sessions list in sidebar
-- ✅ Click delete → session removed
-- ✅ Click clone → duplicate session created
-- ✅ Refresh browser → sessions persist
+**✅ Phase 2 Complete (Features 6-7)**
+- Feature 6: File Storage + Text Extraction (Backend)
+  - Files table + migration, local storage, text extraction (PDF/TXT/MD)
+  - POST/GET/DELETE endpoints, validation (3 files, 10MB, types)
+
+- Feature 7: File Upload UI + LLM Integration (Full Flow)
+  - Paperclip button, file picker, upload to session
+  - Display uploaded files above input with delete button
+  - Send files + message, LLM receives file content in context
+  - Files displayed read-only with messages after send
+  - Badge-style file icons (gray square with file type text)
+
+**✅ Bug Fixes**
+- File metadata per message (was showing all session files on every message)
+  - Solution: Frontend sends `files_metadata` in chat request
+  - Each message now shows only its own files
+
+- Draft state persistence across sessions
+  - Solution: Per-session draft with localStorage
+  - Message text + file IDs saved per session
+  - Draft loads when switching back to session
+  - Draft clears after successful send
+
+**✅ Test Suite (39 passing, 1 skipped)**
+- P0 Tests (Critical Regression Prevention):
+  - File metadata per message (3 tests)
+  - LLM receives file content (3 tests)
+  - Session clone preserves metadata/files (3 tests)
+  - Cascade delete (files + messages) (3 tests)
+
+- P1 Tests (Core Functionality):
+  - Session CRUD (14 tests)
+  - File management (12 tests)
+
+- Infrastructure:
+  - Database compatibility layer (UUIDType, JSONType)
+  - SQLite for tests, PostgreSQL for production
+  - Test fixtures with helpers
+
+**Success Criteria - All Met**:
+- ✅ Paperclip button opens file picker (PDF/TXT/MD only)
+- ✅ Selected files shown above input with delete button
+- ✅ Can upload files to session
+- ✅ Can delete files before sending message
+- ✅ Send message includes file content in LLM context
+- ✅ LLM can reference file content in response
+- ✅ After send, files displayed read-only (no delete)
+- ✅ Files show only with their original message
+- ✅ Draft persists across session switches
 
 ---
 
@@ -83,25 +126,35 @@
 
 *This section is for quick notes during active work. Clear it when switching tasks.*
 
-**Current Status**: Phase 1 ✅ COMPLETE (All 5 Features Done!)
+**Current Status**: ✅ Phase 2 COMPLETE - Ready to commit
 
-**Completed**:
-- ✅ Feature 1: Project Setup + Health Check
-- ✅ Feature 2: Session Management (CRUD)
-- ✅ Feature 3: Basic Chat (Single LLM)
-- ✅ Feature 4: Streaming Responses + SSE (with LiteLLM)
-- ✅ Feature 5: Multi-LLM + Empty State UI
+**What's Ready to Commit**:
+1. File upload UI + LLM integration (Feature 7)
+2. File metadata bug fix (per-message display)
+3. Per-session draft with localStorage
+4. Comprehensive test suite (39 tests passing)
+5. Database compatibility layer for tests
 
-**To Test Multi-LLM**:
-1. Add your Anthropic and Google API keys to `backend/.env`:
-   ```
-   ANTHROPIC_API_KEY=your-key-here
-   GOOGLE_API_KEY=your-key-here
-   ```
-2. Restart the backend container
-3. The model selector will show all configured providers
+**Files Changed**:
+- Backend:
+  - `app/schemas/message.py` - Added `FileMetadata` and `files_metadata` field
+  - `app/api/chat.py` - Use request `files_metadata` instead of querying DB
+  - `app/database.py` - Added `UUIDType` for SQLite compatibility
+  - `app/models/message.py` - Added `JSONType` for SQLite compatibility
+  - `app/models/session.py`, `app/models/file.py` - Use `UUIDType`
+  - `tests/` - Full test suite (conftest, test_chat, test_integration, test_sessions, test_files)
 
-**Next**: Phase 2 (File Upload) or polish/testing
+- Frontend:
+  - `src/components/ChatArea.tsx` - Badge-style icons, files_metadata in request, draft persistence
+  - `src/utils/draftStorage.ts` - localStorage utility for per-session drafts
+  - `package.json` - Added markdown dependencies
+
+**Next Steps**:
+1. Commit this stage (Phase 2 complete)
+2. Move to Phase 3 when ready (Internet Search Tool)
+
+**Future Tasks (Noted, Not Blocking)**:
+- Add cronjob to cleanup orphaned files (uploaded but never sent)
 
 **Open Questions**: None
 

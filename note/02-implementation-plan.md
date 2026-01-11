@@ -375,6 +375,9 @@ This document defines **WHEN** to build features through a phased implementation
 - Animations and transitions
 - Accessibility improvements (keyboard navigation, ARIA labels)
 - Visual feedback for all actions
+- Handle long input message in typing area both start session and chat
+- Dark mode
+- Text input auto focus on new session
 
 ---
 

@@ -4,8 +4,7 @@ Session model for chat sessions.
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from app.database import Base
+from app.database import Base, UUIDType
 
 
 class Session(Base):
@@ -16,7 +15,7 @@ class Session(Base):
     """
     __tablename__ = "sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUIDType(), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     llm_provider = Column(String(50), nullable=False)  # openai, anthropic, google
     llm_model = Column(String(100), nullable=False)    # gpt-4, claude-sonnet-4, gemini-flash-2.0
