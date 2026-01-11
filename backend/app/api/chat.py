@@ -17,6 +17,8 @@ from app.models.message import Message
 from app.models.file import File
 from app.schemas.message import ChatRequest, ChatResponse, MessageResponse
 from app.config import settings
+from app.tools.search import search_internet
+from app.tools.definitions import AVAILABLE_TOOLS
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -242,10 +244,11 @@ async def stream_chat(
         yield f"event: user_message\ndata: {json.dumps(user_msg_data)}\n\n"
 
         try:
-            # Stream response using LiteLLM
+            # Stream response using LiteLLM with tools
             response = await litellm.acompletion(
                 model=llm_model,
                 messages=llm_messages,
+                tools=AVAILABLE_TOOLS,
                 temperature=0.7,
                 max_tokens=4096,
                 stream=True
@@ -253,20 +256,109 @@ async def stream_chat(
 
             # Collect full response for saving
             full_content = ""
+            tool_calls_accumulator = []
 
             async for chunk in response:
                 try:
                     if chunk.choices and len(chunk.choices) > 0:
                         delta = chunk.choices[0].delta
-                        # Get content - handle different response formats
+
+                        # Handle tool calls
+                        if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                            for tool_call in delta.tool_calls:
+                                # Accumulate tool call data
+                                if len(tool_calls_accumulator) <= tool_call.index:
+                                    tool_calls_accumulator.append({
+                                        "id": tool_call.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tool_call.function.name if tool_call.function.name else "",
+                                            "arguments": tool_call.function.arguments if tool_call.function.arguments else ""
+                                        }
+                                    })
+                                else:
+                                    # Append to existing tool call arguments
+                                    if tool_call.function.arguments:
+                                        tool_calls_accumulator[tool_call.index]["function"]["arguments"] += tool_call.function.arguments
+
+                        # Handle regular content
                         content = getattr(delta, 'content', None)
                         if content:
                             full_content += content
                             yield f"event: content_delta\ndata: {json.dumps({'chunk': content})}\n\n"
+
                 except (AttributeError, IndexError) as e:
                     # Log but continue processing
                     print(f"Warning: Error processing chunk: {e}")
                     continue
+
+            # If LLM made tool calls, execute them and get final response
+            if tool_calls_accumulator:
+                print("LLM asked for tool calls", tool_calls_accumulator)
+                for tool_call in tool_calls_accumulator:
+                    if tool_call["function"]["name"] == "search_internet":
+                        try:
+                            # Parse arguments
+                            args = json.loads(tool_call["function"]["arguments"])
+                            query = args.get("query", "")
+
+                            # Execute search
+                            search_results = search_internet(query)
+                            print("internet search result", search_results)
+
+                            # Add assistant message with tool call to conversation
+                            llm_messages.append({
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [{
+                                    "id": tool_call["id"],
+                                    "type": "function",
+                                    "function": {
+                                        "name": "search_internet",
+                                        "arguments": tool_call["function"]["arguments"]
+                                    }
+                                }]
+                            })
+
+                            # Add tool response to conversation
+                            llm_messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call["id"],
+                                "content": json.dumps(search_results)
+                            })
+
+                        except Exception as e:
+                            print(f"Error executing tool: {e}")
+                            # Add empty result on error
+                            llm_messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call["id"],
+                                "content": "[]"
+                            })
+
+                # Call LLM again with tool results to get final response
+                print(llm_messages)
+                response = await litellm.acompletion(
+                    model=llm_model,
+                    messages=llm_messages,
+                    temperature=0.7,
+                    max_tokens=4096,
+                    stream=True
+                )
+
+                # Stream final response
+                full_content = ""
+                async for chunk in response:
+                    try:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            delta = chunk.choices[0].delta
+                            content = getattr(delta, 'content', None)
+                            if content:
+                                full_content += content
+                                yield f"event: content_delta\ndata: {json.dumps({'chunk': content})}\n\n"
+                    except (AttributeError, IndexError) as e:
+                        print(f"Warning: Error processing chunk: {e}")
+                        continue
 
             # Save assistant message using a fresh db session
             with SessionLocal() as save_db:

@@ -60,6 +60,25 @@
 - **Test**: Upload PDF → send message → LLM uses file content → files shown ✅
 - **Bugs Fixed**: File metadata per message, draft state persistence
 
+### Phase 3 Feature Breakdown (2 Features)
+
+**Approach**: Backend tool integration first, then frontend indicator polish
+
+**Feature 8: Search Tool Backend + LLM Integration** ✅ COMPLETE
+- Backend: DuckDuckGo search implementation (ddgs library)
+- Backend: Search tool interface (query → results formatting)
+- Backend: Add search as LLM function calling tool
+- Backend: Tool execution in chat stream flow
+- Backend: Error handling (graceful fallback if search fails)
+- **Test**: Ask "What's the weather?" → Agent searches → Response has current info ✅
+- **Quality Test**: 5/5 queries successful (weather, tutorials, facts, news, technical) ✅
+
+**Feature 9: Search Tool UI Indicator**
+- Frontend: Tool indicator component ("Searching..." message)
+- Frontend: Handle tool_call SSE events from backend
+- Frontend: Display indicator during tool execution
+- **Test**: Full end-to-end → see "Searching..." when agent uses tool ✅
+
 ---
 
 ## Active Context
@@ -93,7 +112,7 @@
   - Draft loads when switching back to session
   - Draft clears after successful send
 
-**✅ Test Suite (39 passing, 1 skipped)**
+**✅ Test Suite (43 passing, 1 skipped)**
 - P0 Tests (Critical Regression Prevention):
   - File metadata per message (3 tests)
   - LLM receives file content (3 tests)
@@ -103,11 +122,13 @@
 - P1 Tests (Core Functionality):
   - Session CRUD (14 tests)
   - File management (12 tests)
+  - Search tool (4 tests)
 
 - Infrastructure:
   - Database compatibility layer (UUIDType, JSONType)
   - SQLite for tests, PostgreSQL for production
   - Test fixtures with helpers
+  - Mocking for external services (DuckDuckGo)
 
 **Success Criteria - All Met**:
 - ✅ Paperclip button opens file picker (PDF/TXT/MD only)
@@ -126,21 +147,42 @@
 
 *This section is for quick notes during active work. Clear it when switching tasks.*
 
-**Current Status**: ✅ Phase 2 COMPLETE + Code Cleanup - Ready to commit
+**Current Status**: 🚀 Phase 3 - Feature 8 Complete, Ready to Commit
 
-**What's Ready to Commit**:
-1. File upload UI + LLM integration (Feature 7)
-2. File metadata bug fix (per-message display)
-3. Per-session draft with localStorage (save on session exit)
-4. Comprehensive test suite (39 tests passing)
-5. Database compatibility layer for tests
-6. ChatArea.tsx refactoring and cleanup
+**Phase 3 Feature 8 - Ready to Commit**:
+1. Search tool implementation (`app/tools/search.py`)
+2. Tool schema definition (`app/tools/definitions.py`)
+3. LLM function calling integration (`app/api/chat.py`)
+4. Tool execution loop in streaming chat
+5. Dependency management (ddgs, httpx compatibility)
+6. Unit tests (4 passing tests in `tests/test_search.py`)
+7. Quality verification script (`test_search_quality.py` - 5/5 success rate)
+
+**Feature 8 Implementation Details**:
+- **Search Tool**: DuckDuckGo integration via `ddgs` package (v9.10.0)
+  - Function: `search_internet(query, max_results=5)` returns formatted results
+  - Graceful error handling (returns empty list on failure)
+  - Results format: `{title, snippet, link}`
+
+- **LLM Integration**: OpenAI function calling format
+  - Tool schema with clear description and parameters
+  - Passed to LiteLLM via `tools=AVAILABLE_TOOLS`
+  - Tool execution loop in streaming endpoint
+
+- **Chat Flow**:
+  1. LLM requests search → backend executes → results returned to LLM
+  2. LLM uses results to generate informed response
+  3. Final response streamed to user
+
+- **Package Management**:
+  - Upgraded from `duckduckgo-search` to `ddgs>=1.0.0` (resolved rate limits)
+  - Fixed dependency conflict: `httpx==0.27.2` (satisfies litellm < 0.28.0)
+  - All searches working with 100% success rate
 
 **Recent Bug Fixes**:
-- ✅ Draft storage race condition - Now saves on session exit (cleanup), not on every keystroke
-- ✅ State cleared synchronously to prevent stale refs in fast session switches
-- ✅ Initial message restoration on error for better UX
-- ✅ useEffect dependency ordering (handleSend defined before use)
+- ✅ Rate limit errors with old `duckduckgo-search` package → Upgraded to `ddgs`
+- ✅ Package deprecation warning → Switched to maintained package
+- ✅ httpx dependency conflict → Used compatible version (0.27.2)
 
 **Code Refactoring Completed**:
 - ✅ Consolidated `sendPendingMessage` into `handleSend` (removed 35 lines of duplication)
@@ -150,7 +192,18 @@
 - ✅ Fixed missing useEffect dependencies
 - ✅ Fixed TypeScript error with onClick handler
 
-**Files Changed**:
+**Files Changed (Phase 3 Feature 8)**:
+- Backend:
+  - `app/tools/__init__.py` - NEW: Tools module initialization
+  - `app/tools/search.py` - NEW: DuckDuckGo search implementation
+  - `app/tools/definitions.py` - NEW: Tool schemas for LLM function calling
+  - `app/api/chat.py` - MODIFIED: Added tool execution loop in streaming endpoint
+  - `requirements.txt` - MODIFIED: Added `ddgs>=1.0.0` for search
+  - `requirements-test.txt` - MODIFIED: Set `httpx==0.27.2` for compatibility
+  - `tests/test_search.py` - NEW: Unit tests for search functionality (4 tests)
+  - `test_search_quality.py` - NEW: Quality verification script (5 test queries)
+
+**Files Changed (Phase 2)**:
 - Backend:
   - `app/schemas/message.py` - Added `FileMetadata` and `files_metadata` field
   - `app/api/chat.py` - Use request `files_metadata` instead of querying DB
@@ -171,9 +224,36 @@
 - React warnings: Fixed (missing deps)
 - Better UX: Initial message restored on error
 
+**Feature 8 Implementation Plan**:
+
+**Step 1: Search Implementation (Backend)**
+1. Install `duckduckgo-search` library
+2. Create `app/tools/search.py` with search function
+3. Format results for LLM consumption
+
+**Step 2: LLM Tool Definition**
+1. Define search tool schema (JSON schema for function calling)
+2. Add to available tools list for LLM
+
+**Step 3: Tool Execution in Chat Flow**
+1. Update chat endpoint to handle tool calls
+2. When LLM requests search → execute → return results to LLM
+3. LLM uses results to generate final response
+4. Stream final response to user
+
+**Step 4: Error Handling**
+1. Graceful fallback if search fails
+2. LLM continues without search results
+
+**Step 5: Testing**
+1. Manual test: "What's the weather in SF?"
+2. Verify response has current/recent data
+3. Check network tab for tool execution
+
 **Next Steps**:
-1. Commit this stage (Phase 2 complete + cleanup)
-2. Move to Phase 3 (Internet Search Tool)
+1. Commit Phase 2 (when ready)
+2. Implement Feature 8 (Search Tool Backend)
+3. Implement Feature 9 (Search Tool UI Indicator)
 
 **Future Tasks (Noted, Not Blocking)**:
 - Add cronjob to cleanup orphaned files (uploaded but never sent)
