@@ -27,15 +27,26 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
   const abortRef = useRef<(() => void) | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef(input)
+  const filesRef = useRef(files)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // Keep refs in sync with current state
   useEffect(() => {
+    inputRef.current = input
+  }, [input])
+
+  useEffect(() => {
+    filesRef.current = files
+  }, [files])
+
+  useEffect(() => {
+
     const loadData = async () => {
-      const msgs = await loadMessages()
-      const hasMessages = msgs.length > 0
+      await loadMessages()
 
       // Load draft for this session
       const draft = getSessionDraft(session.id)
@@ -53,13 +64,21 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
           console.error('Failed to load draft files:', err)
           setFiles([])
         }
-      } else {
-        // No draft, clear input and load unsent files if session is empty
+      }
+      else {
         setInput('')
-        await loadFiles(hasMessages)
+        setFiles([])
       }
     }
     loadData()
+
+    // Save draft when exiting this session (cleanup function)
+    return () => {
+      saveSessionDraft(session.id, {
+        message: inputRef.current,
+        fileIds: filesRef.current.map(f => f.id)
+      })
+    }
   }, [session.id])
 
   // Handle initial message from empty state
@@ -69,14 +88,6 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
       onInitialMessageSent?.()
     }
   }, [initialMessage])
-
-  // Save draft whenever input or files change
-  useEffect(() => {
-    saveSessionDraft(session.id, {
-      message: input,
-      fileIds: files.map(f => f.id)
-    })
-  }, [input, files, session.id])
 
   const sendPendingMessage = (messageText: string) => {
     if (!messageText.trim() || loading) return
@@ -141,19 +152,6 @@ export function ChatArea({ session, initialMessage, onInitialMessageSent, onSess
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages')
       return []
-    }
-  }
-
-  const loadFiles = async (hasMessages: boolean) => {
-    try {
-      const data = await filesApi.list(session.id)
-      // Only load files into input area if there are no messages yet
-      // (files in sessions with messages are considered "sent")
-      if (!hasMessages) {
-        setFiles(data)
-      }
-    } catch (err) {
-      console.error('Failed to load files:', err)
     }
   }
 
