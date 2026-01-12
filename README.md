@@ -2,14 +2,6 @@
 
 A simple AI chat agent that allows users to interact with multiple LLM providers (OpenAI, Anthropic, Google) through a web-based chat interface.
 
-## Features (Phase 1 - In Progress)
-
-- ✅ **Feature 1**: Project Setup + Health Check
-- 🔜 **Feature 2**: Session Management (CRUD)
-- 🔜 **Feature 3**: Basic Chat (Single LLM, No Streaming)
-- 🔜 **Feature 4**: Streaming Responses + SSE
-- 🔜 **Feature 5**: Multi-LLM + Empty State UI
-
 ## Tech Stack
 
 ### Backend

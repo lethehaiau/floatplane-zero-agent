@@ -5,10 +5,29 @@ import { modelsApi, sessionsApi, type ModelInfo } from './services/api'
 import type { Session } from './types/session'
 import floatplaneFront from './assets/floatplane-front.png';
 
+// Default models to show immediately (prevents flicker during loading)
+const DEFAULT_MODELS: ModelInfo[] = [
+  {
+    provider: "openai",
+    model: "gpt-4",
+    display_name: "OpenAI / GPT-4"
+  },
+  {
+    provider: "anthropic",
+    model: "claude-sonnet-4-20250514",
+    display_name: "Anthropic / Claude Sonnet 4"
+  },
+  {
+    provider: "google",
+    model: "gemini/gemini-2.5-flash",
+    display_name: "Google / Gemini 2.5 Flash"
+  }
+]
+
 function App() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null)
-  const [models, setModels] = useState<ModelInfo[]>([])
-  const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(null)
+  const [models, setModels] = useState<ModelInfo[]>(DEFAULT_MODELS)
+  const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(DEFAULT_MODELS[0])
   const [message, setMessage] = useState('')
   const [creating, setCreating] = useState(false)
   const [initialMessage, setInitialMessage] = useState<string | null>(null)
@@ -24,9 +43,16 @@ function App() {
       setModels(response.models)
       if (response.models.length > 0) {
         setSelectedModel(response.models[0])
+      } else {
+        // API succeeded but returned no models (no API keys configured)
+        // Clear default models to show error message
+        setSelectedModel(null)
       }
     } catch (err) {
       console.error('Failed to load models:', err)
+      // On error, clear models to show error message
+      setModels([])
+      setSelectedModel(null)
     }
   }
 
