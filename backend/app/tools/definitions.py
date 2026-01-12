@@ -10,9 +10,10 @@ SEARCH_TOOL = {
     "function": {
         "name": "search_internet",
         "description": (
-            "Search the internet for current information, news, weather, or recent events. "
+            "Search the internet using AI-powered search for current information. "
+            "Returns an AI-generated summary answer based on latest web data. "
             "Use this when you need up-to-date information that you don't have in your knowledge. "
-            "Examples: current weather, recent news, live scores, current prices."
+            "Examples: current weather, recent news, live scores, current prices, latest events."
         ),
         "parameters": {
             "type": "object",

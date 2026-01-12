@@ -1,8 +1,16 @@
 """
 Interactive search testing script.
 
-Run: python test_search_interactive.py
+Run from backend directory: python scripts/test_search_interactive.py
+Or from scripts directory: python test_search_interactive.py
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to path so we can import from app/
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
 from app.tools.search import search_internet
 
 
