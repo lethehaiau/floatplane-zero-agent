@@ -344,6 +344,7 @@ async def stream_chat(
                 response = await litellm.acompletion(
                     model=llm_model,
                     messages=llm_messages,
+                    tools=AVAILABLE_TOOLS,
                     temperature=0.7,
                     max_tokens=4096,
                     stream=True
