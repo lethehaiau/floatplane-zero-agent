@@ -44,12 +44,17 @@ class UUIDType(TypeDecorator):
                 return uuid.UUID(value)
             return value
 
-# Create database engine
+# Create database engine with connection pooling
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10
+    # Connection Pool Settings
+    pool_size=5,              # Base pool: 5 persistent connections
+    max_overflow=10,           # Burst capacity: +10 connections
+    pool_timeout=30,           # Wait up to 30s for available connection
+    pool_recycle=3600,         # Recycle connections after 1 hour (prevents stale connections)
+    pool_pre_ping=True,        # Verify connection health before using (adds slight overhead)
+    # Query Performance
+    echo=False,                # Set to True for SQL query logging (debug only)
 )
 
 # Create session factory
