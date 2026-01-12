@@ -2,6 +2,12 @@
 
 A simple AI chat agent that allows users to interact with multiple LLM providers (OpenAI, Anthropic, Google) through a web-based chat interface.
 
+
+
+https://github.com/user-attachments/assets/dd7d68cf-e141-4e88-8082-59ff2c1813f9
+
+
+
 ## Tech Stack
 
 ### Backend
