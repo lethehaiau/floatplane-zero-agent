@@ -14,7 +14,7 @@ pydantic-settings==2.7.1
 
 # LLM Integration
 litellm==1.80.13
-openai==1.59.7
+openai==2.8.0
 
 # Utilities
 python-dotenv==1.0.1

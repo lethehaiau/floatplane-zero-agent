@@ -5,6 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import sessions, chat, files
+from app.logging_config import setup_logging
+
+# Setup logging
+setup_logging(log_level=settings.DEBUG and "DEBUG" or "INFO")
 
 # Create FastAPI app
 app = FastAPI(

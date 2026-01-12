@@ -3,10 +3,13 @@ Internet search tool using Tavily (AI-powered) with DuckDuckGo fallback.
 
 Provides search functionality for the agent to access current information.
 """
+import logging
 from typing import List, Dict
 from ddgs import DDGS
 from tavily import TavilyClient
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def search_internet(query: str, max_results: int = 5) -> List[Dict[str, str]]:
@@ -34,7 +37,7 @@ def search_internet(query: str, max_results: int = 5) -> List[Dict[str, str]]:
     # Try Tavily first (AI-powered search with answer summary)
     if settings.TAVILY_API_KEY:
         try:
-            print("Using Tavily search (AI-powered)...")
+            logger.info(f"Using Tavily search for query: '{query}'")
             client = TavilyClient(api_key=settings.TAVILY_API_KEY)
             response = client.search(
                 query=query,
@@ -45,17 +48,17 @@ def search_internet(query: str, max_results: int = 5) -> List[Dict[str, str]]:
 
             # Return AI-generated answer as single result
             if response.get("answer"):
-                print(f"Tavily answer: {response['answer'][:100]}...")
+                logger.info(f"Tavily returned AI answer for query: '{query}'", extra={"answer_preview": response['answer'][:100]})
                 return [{
                     "title": "AI Search Summary",
                     "snippet": response["answer"],
                     "link": ""
                 }]
 
-            print("Tavily returned no answer, falling back to DuckDuckGo")
+            logger.info("Tavily returned no answer, falling back to DuckDuckGo", extra={"query": query})
 
         except Exception as e:
-            print(f"Tavily search failed: {e}, falling back to DuckDuckGo")
+            logger.warning(f"Tavily search failed: {e}, falling back to DuckDuckGo", exc_info=True, extra={"query": query})
 
     # Fallback to DuckDuckGo
     return _search_with_ddgs(query, max_results)
@@ -74,7 +77,7 @@ def _search_with_ddgs(query: str, max_results: int = 5) -> List[Dict[str, str]]:
         Returns empty list on error
     """
     try:
-        print("Using DuckDuckGo search...")
+        logger.info(f"Using DuckDuckGo search for query: '{query}'")
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=max_results))
 
@@ -87,10 +90,11 @@ def _search_with_ddgs(query: str, max_results: int = 5) -> List[Dict[str, str]]:
                 "link": r.get("href", "")
             })
 
+        logger.info(f"DuckDuckGo returned {len(formatted)} results for query: '{query}'")
         return formatted
 
     except Exception as e:
         # Silent failure - return empty results
         # LLM can handle missing data gracefully
-        print(f"DuckDuckGo search failed: {e}")
+        logger.error(f"DuckDuckGo search failed: {e}", exc_info=True, extra={"query": query})
         return []

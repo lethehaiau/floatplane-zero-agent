@@ -2,6 +2,7 @@
 Chat API endpoints.
 """
 import json
+import logging
 import os
 from datetime import datetime
 from typing import AsyncGenerator
@@ -21,6 +22,7 @@ from app.tools.search import search_internet
 from app.tools.definitions import AVAILABLE_TOOLS
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 # Configure LiteLLM - set environment variables for each provider
 # LiteLLM automatically reads these when making API calls
@@ -288,13 +290,14 @@ async def stream_chat(
                             yield f"event: content_delta\ndata: {json.dumps({'chunk': content})}\n\n"
 
                 except (AttributeError, IndexError) as e:
-                    # Log but continue processing
-                    print(f"Warning: Error processing chunk: {e}")
-                    continue
+                    # Log error and send error event to frontend
+                    logger.error(f"Error processing chunk: {e}", exc_info=True)
+                    yield f"event: error\ndata: {json.dumps({'detail': 'Stream interrupted - chunk processing failed'})}\n\n"
+                    return  # Stop streaming on error
 
             # If LLM made tool calls, execute them and get final response
             if tool_calls_accumulator:
-                print("LLM asked for tool calls", tool_calls_accumulator)
+                logger.info(f"LLM requested {len(tool_calls_accumulator)} tool call(s)", extra={"tool_calls": tool_calls_accumulator})
                 for tool_call in tool_calls_accumulator:
                     if tool_call["function"]["name"] == "search_internet":
                         try:
@@ -304,7 +307,7 @@ async def stream_chat(
 
                             # Execute search
                             search_results = search_internet(query)
-                            print("internet search result", search_results)
+                            logger.info(f"Search completed for query: '{query}'", extra={"query": query, "result_count": len(search_results)})
 
                             # Add assistant message with tool call to conversation
                             llm_messages.append({
@@ -328,7 +331,7 @@ async def stream_chat(
                             })
 
                         except Exception as e:
-                            print(f"Error executing tool: {e}")
+                            logger.error(f"Error executing search tool: {e}", exc_info=True, extra={"query": query})
                             # Add empty result on error
                             llm_messages.append({
                                 "role": "tool",
@@ -337,7 +340,7 @@ async def stream_chat(
                             })
 
                 # Call LLM again with tool results to get final response
-                print(llm_messages)
+                logger.debug(f"Calling LLM with {len(llm_messages)} messages including tool results")
                 response = await litellm.acompletion(
                     model=llm_model,
                     messages=llm_messages,
@@ -357,8 +360,9 @@ async def stream_chat(
                                 full_content += content
                                 yield f"event: content_delta\ndata: {json.dumps({'chunk': content})}\n\n"
                     except (AttributeError, IndexError) as e:
-                        print(f"Warning: Error processing chunk: {e}")
-                        continue
+                        logger.error(f"Error processing final response chunk: {e}", exc_info=True)
+                        yield f"event: error\ndata: {json.dumps({'detail': 'Stream interrupted - chunk processing failed'})}\n\n"
+                        return  # Stop streaming on error
 
             # Save assistant message using a fresh db session
             with SessionLocal() as save_db:

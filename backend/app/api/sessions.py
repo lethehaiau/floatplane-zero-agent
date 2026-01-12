@@ -1,6 +1,7 @@
 """
 Session management API endpoints.
 """
+import logging
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DBSession
@@ -14,6 +15,7 @@ from app.schemas.session import SessionCreate, SessionResponse, SessionListRespo
 from app.utils.storage import storage
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
@@ -103,7 +105,7 @@ async def delete_session(
         storage.delete_session_files(session_id)
     except Exception as e:
         # Log warning but continue with database deletion
-        print(f"Warning: Failed to delete physical files for session {session_id}: {e}")
+        logger.warning(f"Failed to delete physical files for session {session_id}: {e}", extra={"session_id": str(session_id)})
 
     # Delete session (cascade will handle messages and files table records)
     db.delete(session)
@@ -196,7 +198,7 @@ async def clone_session(
             file_content = storage.read_file(original_file.file_path)
         except Exception as e:
             # If file doesn't exist on disk, skip it
-            print(f"Warning: Could not read file {original_file.file_path}: {e}")
+            logger.warning(f"Could not read file during clone: {e}", extra={"file_path": original_file.file_path, "file_id": str(original_file.id)})
             continue
 
         # Create cloned file record
@@ -221,7 +223,7 @@ async def clone_session(
             cloned_file.file_path = file_path
             db.add(cloned_file)
         except Exception as e:
-            print(f"Warning: Could not save cloned file: {e}")
+            logger.warning(f"Could not save cloned file: {e}", extra={"filename": original_file.filename, "new_file_id": str(new_file_id)})
             continue
 
     db.commit()

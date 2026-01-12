@@ -1,6 +1,7 @@
 """
 Files API endpoints.
 """
+import logging
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File as FastAPIFile, status
 from sqlalchemy.orm import Session as DBSession
@@ -13,6 +14,7 @@ from app.utils.storage import storage
 from app.utils.text_extraction import extract_text
 
 router = APIRouter(prefix="/api/sessions", tags=["files"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/{session_id}/files", response_model=list[FileResponse])
@@ -158,7 +160,7 @@ async def delete_file(
         storage.delete_file(file_record.file_path)
     except Exception as e:
         # Log error but continue with database deletion
-        print(f"Warning: Failed to delete file from storage: {str(e)}")
+        logger.warning(f"Failed to delete file from storage: {str(e)}", extra={"file_path": file_record.file_path, "file_id": str(file_id)})
 
     # Delete from database
     db.delete(file_record)
